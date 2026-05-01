@@ -1,0 +1,28 @@
+.DS_Store
+
+# Local env files
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!frontend/.env.production.example
+
+# Backend local files and build output
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/mongodb-visual-server
+backend/*.swp
+
+# Local planning/reference artifacts
+.kiro/
+stitch_mongodb_data_manager/
+docs/
+
