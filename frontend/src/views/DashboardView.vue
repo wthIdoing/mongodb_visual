@@ -580,7 +580,7 @@ async function loadConnection() {
     connection.value = await fetchConnectionInfo()
   } catch (error) {
     connection.value = { status: 'error' }
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   }
 }
 
@@ -632,7 +632,7 @@ async function loadTree() {
       indexes.value = []
     }
   } catch (error) {
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   } finally {
     treeLoading.value = false
   }
@@ -668,7 +668,7 @@ async function submitCreateDatabase() {
     ElMessage.success(t.value.databaseCreated)
     await Promise.all([loadDocuments(), loadIndexes()])
   } catch (error) {
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   }
 }
 
@@ -698,7 +698,7 @@ async function toggleDatabase(database: string, forceRefresh = false) {
       [database]: data.items || [],
     }
   } catch (error) {
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   }
 }
 
@@ -760,7 +760,7 @@ async function loadDocuments() {
   try {
     params = buildQueryParams()
   } catch (error) {
-    documentsError.value = (error as Error).message
+    documentsError.value = errorMessage(error)
     ElMessage.error(documentsError.value)
     return
   }
@@ -775,7 +775,7 @@ async function loadDocuments() {
   } catch (error) {
     documents.value = []
     total.value = 0
-    documentsError.value = (error as Error).message
+    documentsError.value = errorMessage(error)
     ElMessage.error(documentsError.value)
   } finally {
     documentsLoading.value = false
@@ -831,7 +831,7 @@ async function openCreateCollection(database: string) {
     ElMessage.success(t.value.collectionCreated)
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error((error as Error).message)
+      ElMessage.error(errorMessage(error))
     }
   }
 }
@@ -864,7 +864,7 @@ async function openEditDocument(row: Record<string, unknown>) {
     buildFormFieldsFromDocument(data.item || {})
     editorVisible.value = true
   } catch (error) {
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   }
 }
 
@@ -905,7 +905,7 @@ async function saveDocument() {
   try {
     value = editorMode.value === 'form' ? buildDocumentFromForm() : JSON.parse(editorValue.value)
   } catch (error) {
-    ElMessage.error((error as Error).message || t.value.invalidJson)
+    ElMessage.error(errorMessage(error) || t.value.invalidJson)
     return
   }
 
@@ -921,7 +921,7 @@ async function saveDocument() {
     await loadDocuments()
     await toggleDatabase(selectedDatabase.value, true)
   } catch (error) {
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   }
 }
 
@@ -944,7 +944,7 @@ async function confirmDeleteDocument(row: Record<string, unknown>) {
     await toggleDatabase(selectedDatabase.value, true)
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error((error as Error).message)
+      ElMessage.error(errorMessage(error))
     }
   }
 }
@@ -971,7 +971,7 @@ async function confirmDeleteCollection() {
     ElMessage.success(t.value.collectionDeleted)
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error((error as Error).message)
+      ElMessage.error(errorMessage(error))
     }
   }
 }
@@ -1000,7 +1000,7 @@ async function confirmDeleteDatabase(database: string) {
     ElMessage.success(t.value.databaseDeleted)
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error((error as Error).message)
+      ElMessage.error(errorMessage(error))
     }
   }
 }
@@ -1031,7 +1031,7 @@ async function handleExportCommand(format: string) {
     const response = await exportDocuments(selectedDatabase.value, selectedCollection.value, params)
     downloadBlob(response.data, response.headers['content-type'], response.headers['content-disposition'], `${selectedCollection.value}.${format}`)
   } catch (error) {
-    ElMessage.error((error as Error).message || t.value.exportFailed)
+    ElMessage.error(errorMessage(error) || t.value.exportFailed)
   }
 }
 
@@ -1049,7 +1049,7 @@ async function handleSelectedExportCommand(format: string) {
     })
     downloadBlob(response.data, response.headers['content-type'], response.headers['content-disposition'], `${selectedCollection.value}.selected.${format}`)
   } catch (error) {
-    ElMessage.error((error as Error).message || t.value.exportFailed)
+    ElMessage.error(errorMessage(error) || t.value.exportFailed)
   }
 }
 
@@ -1076,7 +1076,7 @@ async function handleBackupCommand(command: string) {
       }
     } catch (error) {
       if (error !== 'cancel') {
-        ElMessage.error((error as Error).message || t.value.restoreFailed)
+        ElMessage.error(errorMessage(error) || t.value.restoreFailed)
       }
     }
     return
@@ -1089,7 +1089,7 @@ async function handleBackupCommand(command: string) {
     downloadBlob(response.data, response.headers['content-type'], response.headers['content-disposition'], `${selectedCollection.value}.backup.json`)
     ElMessage.success(t.value.backupSuccess)
   } catch (error) {
-    ElMessage.error((error as Error).message || t.value.backupFailed)
+    ElMessage.error(errorMessage(error) || t.value.backupFailed)
   }
 }
 
@@ -1128,7 +1128,7 @@ async function handleImportFileChange(event: Event) {
     await loadDocuments()
     await toggleDatabase(selectedDatabase.value, true)
   } catch (error) {
-    ElMessage.error((error as Error).message || (importAction.value === 'restore' ? t.value.restoreFailed : t.value.importFailed))
+    ElMessage.error(errorMessage(error) || (importAction.value === 'restore' ? t.value.restoreFailed : t.value.importFailed))
   }
 }
 
@@ -1146,7 +1146,7 @@ async function resolveRestoreCollection() {
     return String(value || '').trim()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error((error as Error).message)
+      ElMessage.error(errorMessage(error))
     }
     return ''
   }
@@ -1172,7 +1172,7 @@ async function confirmBulkDelete() {
     await toggleDatabase(selectedDatabase.value, true)
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error((error as Error).message)
+      ElMessage.error(errorMessage(error))
     }
   }
 }
@@ -1188,7 +1188,7 @@ async function loadIndexes() {
     const data = await fetchIndexes(selectedDatabase.value, selectedCollection.value)
     indexes.value = data.items || []
   } catch (error) {
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   } finally {
     indexesLoading.value = false
   }
@@ -1214,7 +1214,7 @@ async function submitCreateIndex() {
     ElMessage.success(t.value.createIndexSuccess)
     await loadIndexes()
   } catch (error) {
-    ElMessage.error((error as Error).message)
+    ElMessage.error(errorMessage(error))
   }
 }
 
@@ -1230,9 +1230,14 @@ async function confirmDeleteIndex(name: string) {
     await loadIndexes()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error((error as Error).message)
+      ElMessage.error(errorMessage(error))
     }
   }
+}
+
+function errorMessage(error: unknown) {
+  const message = (error as Error)?.message || ''
+  return t.value.localizedError(message)
 }
 
 function buildFormFieldsFromDocument(document: Record<string, unknown>) {

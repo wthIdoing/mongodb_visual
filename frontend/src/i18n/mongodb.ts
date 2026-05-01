@@ -121,6 +121,18 @@ const messages = {
     restoreConfirm: (collection: string) => `确认将备份恢复到 ${collection} 吗？现有 document 会先被清空。`,
     restoreCollectionPrompt: (database: string) => `输入要恢复到 ${database} 中的 collection 名称`,
     restoreCollectionRequired: '请输入 collection 名称',
+    localizedError: (message: string) => {
+      if (message.includes('collection backup JSON must be restored with restore collection')) {
+        return '这是 collection 备份文件，请使用“从备份恢复”功能，不要通过“导入 document”导入。'
+      }
+      if (message.includes('_id must be a valid ObjectId hex string')) {
+        return '_id 必须是合法的 ObjectId 24 位十六进制字符串。'
+      }
+      if (message.includes('_id must be ObjectId or ObjectId hex string')) {
+        return '_id 必须是 ObjectId 或合法的 ObjectId 十六进制字符串。'
+      }
+      return message
+    },
     createIndexTitle: '新建索引',
     createIndexSuccess: '索引创建成功',
     deleteIndexConfirm: (name: string) => `确认删除索引 ${name} 吗？`,
@@ -282,6 +294,18 @@ const messages = {
     restoreConfirm: (collection: string) => `Restore backup to ${collection}? Existing document will be cleared first.`,
     restoreCollectionPrompt: (database: string) => `Enter the target collection name in ${database}`,
     restoreCollectionRequired: 'Collection name is required',
+    localizedError: (message: string) => {
+      if (message.includes('collection backup JSON must be restored with restore collection')) {
+        return 'This is a collection backup file. Use "Restore from backup" instead of importing it as document data.'
+      }
+      if (message.includes('_id must be a valid ObjectId hex string')) {
+        return '_id must be a valid 24-character ObjectId hex string.'
+      }
+      if (message.includes('_id must be ObjectId or ObjectId hex string')) {
+        return '_id must be an ObjectId or a valid ObjectId hex string.'
+      }
+      return message
+    },
     createIndexTitle: 'Create index',
     createIndexSuccess: 'Index created',
     deleteIndexConfirm: (name: string) => `Delete index ${name}?`,
