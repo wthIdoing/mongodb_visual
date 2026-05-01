@@ -390,6 +390,9 @@ func parseJSONDocuments(reader io.Reader) ([]bson.M, error) {
 	if err := json.Unmarshal(content, &singlePayload); err != nil {
 		return nil, fmt.Errorf("invalid JSON import payload")
 	}
+	if isCollectionBackupPayload(singlePayload) {
+		return nil, fmt.Errorf("collection backup JSON must be restored with restore collection, not imported as document")
+	}
 	return normalizeDocuments([]map[string]any{singlePayload})
 }
 
@@ -427,9 +430,39 @@ func normalizeDocuments(items []map[string]any) ([]bson.M, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := normalizeImportedID(normalized); err != nil {
+			return nil, err
+		}
 		out = append(out, normalized)
 	}
 	return out, nil
+}
+
+func isCollectionBackupPayload(payload map[string]any) bool {
+	_, hasDocuments := payload["documents"]
+	_, hasCollection := payload["collection"]
+	return hasDocuments && hasCollection
+}
+
+func normalizeImportedID(document bson.M) error {
+	value, exists := document["_id"]
+	if !exists || value == nil {
+		return nil
+	}
+
+	switch typed := value.(type) {
+	case bson.ObjectID:
+		return nil
+	case string:
+		objectID, err := bson.ObjectIDFromHex(typed)
+		if err != nil {
+			return fmt.Errorf("_id must be a valid ObjectId hex string")
+		}
+		document["_id"] = objectID
+		return nil
+	default:
+		return fmt.Errorf("_id must be ObjectId or ObjectId hex string")
+	}
 }
 
 func inferCSVValue(value string) any {

@@ -154,7 +154,7 @@
               <el-button plain :disabled="!selectedDatabase" @click="openCreateCollection(selectedDatabase)">{{ t.newCollection }}</el-button>
               <el-button type="danger" plain :disabled="!selectedCollection" @click="confirmDeleteCollection">{{ t.deleteCollection }}</el-button>
               <el-button plain :disabled="!selectedCollection" @click="handleBackupCommand('json')">{{ t.backupCollection }}</el-button>
-              <el-button plain :disabled="!selectedCollection" @click="handleBackupCommand('restore')">{{ t.restoreFromBackup }}</el-button>
+              <el-button plain :disabled="!selectedDatabase" @click="handleBackupCommand('restore')">{{ t.restoreFromBackup }}</el-button>
               <el-button plain :disabled="!selectedCollection" @click="loadIndexes">{{ t.refreshIndexes }}</el-button>
               <el-button plain :disabled="!selectedCollection" @click="openIndexDialog">{{ t.createIndex }}</el-button>
             </div>
@@ -235,7 +235,7 @@
                 <div class="table-actions">
                   <el-button type="primary" :disabled="!selectedCollection" @click="openCreateDocument">{{ t.newDocument }}</el-button>
                   <el-dropdown :disabled="!selectedCollection" @command="handleImportCommand">
-                    <el-button plain>{{ t.importDocument }}</el-button>
+                    <el-button plain :disabled="!selectedCollection">{{ t.importDocument }}</el-button>
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="json">{{ t.importJson }}</el-dropdown-item>
@@ -244,7 +244,7 @@
                     </template>
                   </el-dropdown>
                   <el-dropdown :disabled="!selectedCollection" @command="handleExportCommand">
-                    <el-button plain>{{ t.exportDocument }}</el-button>
+                    <el-button plain :disabled="!selectedCollection">{{ t.exportDocument }}</el-button>
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="json">{{ t.exportJson }}</el-dropdown-item>
@@ -253,7 +253,7 @@
                     </template>
                   </el-dropdown>
                   <el-dropdown :disabled="!selectedCollection || selectedCount === 0" @command="handleSelectedExportCommand">
-                    <el-button plain>{{ t.exportSelected }}</el-button>
+                    <el-button plain :disabled="!selectedCollection || selectedCount === 0">{{ t.exportSelected }}</el-button>
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="json">{{ t.exportJson }}</el-dropdown-item>
@@ -505,6 +505,7 @@ const complexFields = ref<string[]>([])
 const importInput = ref<HTMLInputElement | null>(null)
 const pendingImportFormat = ref<'json' | 'csv'>('json')
 const importAction = ref<'query' | 'restore'>('query')
+const pendingRestoreCollection = ref('')
 const databaseDialogVisible = ref(false)
 const databaseForm = ref({
   database: '',
@@ -1022,6 +1023,8 @@ function handleDocumentRowClick(row: Record<string, unknown>, _column: unknown, 
 }
 
 async function handleExportCommand(format: string) {
+  if (!selectedDatabase.value || !selectedCollection.value) return
+
   try {
     const params = buildQueryParams()
     params.format = format
@@ -1033,6 +1036,8 @@ async function handleExportCommand(format: string) {
 }
 
 async function handleSelectedExportCommand(format: string) {
+  if (!selectedDatabase.value || !selectedCollection.value || selectedRows.value.length === 0) return
+
   try {
     const ids = selectedRows.value
       .map((row) => extractObjectId(row._id))
@@ -1049,14 +1054,20 @@ async function handleSelectedExportCommand(format: string) {
 }
 
 async function handleBackupCommand(command: string) {
+  if (!selectedDatabase.value) return
+
   if (command === 'restore') {
     try {
-      await ElMessageBox.confirm(t.value.restoreConfirm(selectedCollection.value), t.value.restoreTitle, {
+      const collection = await resolveRestoreCollection()
+      if (!collection) return
+
+      await ElMessageBox.confirm(t.value.restoreConfirm(collection), t.value.restoreTitle, {
         type: 'warning',
         confirmButtonText: t.value.confirm,
         cancelButtonText: t.value.cancel,
       })
       importAction.value = 'restore'
+      pendingRestoreCollection.value = collection
       pendingImportFormat.value = 'json'
       if (importInput.value) {
         importInput.value.value = ''
@@ -1071,6 +1082,8 @@ async function handleBackupCommand(command: string) {
     return
   }
 
+  if (!selectedCollection.value) return
+
   try {
     const response = await backupCollection(selectedDatabase.value, selectedCollection.value)
     downloadBlob(response.data, response.headers['content-type'], response.headers['content-disposition'], `${selectedCollection.value}.backup.json`)
@@ -1081,7 +1094,10 @@ async function handleBackupCommand(command: string) {
 }
 
 function handleImportCommand(format: string) {
+  if (!selectedDatabase.value || !selectedCollection.value) return
+
   importAction.value = 'query'
+  pendingRestoreCollection.value = ''
   pendingImportFormat.value = format as 'json' | 'csv'
   if (importInput.value) {
     importInput.value.value = ''
@@ -1093,13 +1109,19 @@ function handleImportCommand(format: string) {
 async function handleImportFileChange(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
-  if (!file || !selectedCollection.value) return
+  if (!file || !selectedDatabase.value) return
 
   try {
     if (importAction.value === 'restore') {
-      const res = await restoreCollection(selectedDatabase.value, selectedCollection.value, file)
-      ElMessage.success(t.value.restoreResult((res.data as { inserted_count?: number }).inserted_count || 0))
+      const collection = pendingRestoreCollection.value || selectedCollection.value
+      if (!collection) return
+
+      const res = await restoreCollection(selectedDatabase.value, collection, file)
+      ElMessage.success(t.value.restoreResult((res.data as { restored_count?: number }).restored_count || 0))
+      selectedCollection.value = collection
     } else {
+      if (!selectedCollection.value) return
+
       const res = await importDocuments(selectedDatabase.value, selectedCollection.value, file, pendingImportFormat.value)
       ElMessage.success(t.value.importResult((res.data as { inserted_count?: number }).inserted_count || 0))
     }
@@ -1107,6 +1129,26 @@ async function handleImportFileChange(event: Event) {
     await toggleDatabase(selectedDatabase.value, true)
   } catch (error) {
     ElMessage.error((error as Error).message || (importAction.value === 'restore' ? t.value.restoreFailed : t.value.importFailed))
+  }
+}
+
+async function resolveRestoreCollection() {
+  if (selectedCollection.value) {
+    return selectedCollection.value
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt(t.value.restoreCollectionPrompt(selectedDatabase.value), t.value.restoreTitle, {
+      confirmButtonText: t.value.confirm,
+      cancelButtonText: t.value.cancel,
+      inputValidator: (input) => Boolean(String(input || '').trim()) || t.value.restoreCollectionRequired,
+    })
+    return String(value || '').trim()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error((error as Error).message)
+    }
+    return ''
   }
 }
 

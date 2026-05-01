@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -28,5 +29,34 @@ func TestNormalizeDocumentSpecialValues(t *testing.T) {
 func TestParseFilterInvalidJSON(t *testing.T) {
 	if _, err := ParseJSONFilter("{invalid}"); err == nil {
 		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestParseImportDocumentsConvertsHexStringID(t *testing.T) {
+	documents, err := ParseImportDocuments(strings.NewReader(`[{"_id":"507f1f77bcf86cd799439011","name":"Alice"}]`), "json")
+	if err != nil {
+		t.Fatalf("ParseImportDocuments returned error: %v", err)
+	}
+
+	if _, ok := documents[0]["_id"].(bson.ObjectID); !ok {
+		t.Fatalf("expected _id to be ObjectID, got %T", documents[0]["_id"])
+	}
+}
+
+func TestParseImportDocumentsRejectsCollectionBackup(t *testing.T) {
+	_, err := ParseImportDocuments(strings.NewReader(`{
+		"database": "demo",
+		"collection": "users",
+		"documents": []
+	}`), "json")
+	if err == nil {
+		t.Fatal("expected collection backup import to fail")
+	}
+}
+
+func TestParseImportDocumentsRejectsInvalidStringID(t *testing.T) {
+	_, err := ParseImportDocuments(strings.NewReader(`[{"_id":"custom-id","name":"Alice"}]`), "json")
+	if err == nil {
+		t.Fatal("expected invalid string _id to fail")
 	}
 }
