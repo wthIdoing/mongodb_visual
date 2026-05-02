@@ -371,6 +371,12 @@ server {
         proxy_pass http://127.0.0.1:8080/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Mongo-Host $http_x_mongo_host;
+        proxy_set_header X-Mongo-Port $http_x_mongo_port;
+        proxy_set_header X-Mongo-Database $http_x_mongo_database;
+        proxy_set_header X-Mongo-Username $http_x_mongo_username;
+        proxy_set_header X-Mongo-Password $http_x_mongo_password;
+        proxy_set_header X-Mongo-AuthSource $http_x_mongo_authsource;
     }
 
     location /healthz {
@@ -424,6 +430,12 @@ Nginx 中代理：
 ```nginx
 location /api/ {
     proxy_pass http://mongodb-visual-backend.default.svc.cluster.local:8080/api/;
+    proxy_set_header X-Mongo-Host $http_x_mongo_host;
+    proxy_set_header X-Mongo-Port $http_x_mongo_port;
+    proxy_set_header X-Mongo-Database $http_x_mongo_database;
+    proxy_set_header X-Mongo-Username $http_x_mongo_username;
+    proxy_set_header X-Mongo-Password $http_x_mongo_password;
+    proxy_set_header X-Mongo-AuthSource $http_x_mongo_authsource;
 }
 ```
 
@@ -527,6 +539,63 @@ FRONTEND_ORIGINS=http://192.168.1.20,http://localhost,http://127.0.0.1
 3. username / password 是否正确
 4. authSource 是否正确
 5. 当前 MongoDB 用户是否有查看、创建、删除 database / collection 的权限
+
+### 通过页面连接其他主机 MongoDB 时为什么失败？
+
+页面连接页中填写的 MongoDB host 不是由浏览器直接连接，而是由后端服务连接。
+
+例如浏览器访问：
+
+```text
+http://10.0.0.10
+```
+
+连接页填写：
+
+```text
+host: 10.0.0.11
+port: 27017
+```
+
+实际链路是：
+
+```text
+Browser -> Nginx(10.0.0.10:80) -> backend(10.0.0.10:8080) -> MongoDB(10.0.0.11:27017)
+```
+
+因此需要确认：
+
+1. `10.0.0.10` 后端能访问 `10.0.0.11:27017`
+2. `10.0.0.11` 的 MongoDB 没有只绑定 `127.0.0.1`
+3. `10.0.0.11` 防火墙允许 `10.0.0.10` 访问 `27017`
+4. Nginx 代理 `/api` 时透传了 `X-Mongo-*` 请求头
+
+在后端所在机器上测试 MongoDB 端口：
+
+```bash
+nc -vz 10.0.0.11 27017
+```
+
+如果 MongoDB 只监听本机，需要修改 MongoDB 配置中的 `bindIp`，例如：
+
+```yaml
+net:
+  bindIp: 0.0.0.0
+  port: 27017
+```
+
+然后重启 MongoDB。
+
+如果 Nginx 没有透传 `X-Mongo-*` 请求头，后端会退回默认连接，或者拿不到页面上填写的目标 MongoDB 地址。`/api` 代理中应包含：
+
+```nginx
+proxy_set_header X-Mongo-Host $http_x_mongo_host;
+proxy_set_header X-Mongo-Port $http_x_mongo_port;
+proxy_set_header X-Mongo-Database $http_x_mongo_database;
+proxy_set_header X-Mongo-Username $http_x_mongo_username;
+proxy_set_header X-Mongo-Password $http_x_mongo_password;
+proxy_set_header X-Mongo-AuthSource $http_x_mongo_authsource;
+```
 
 ### 空 MongoDB 实例没有 database 怎么办？
 
