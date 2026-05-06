@@ -19,6 +19,8 @@ func TestLoadUsesDefaultFrontendOrigins(t *testing.T) {
 	want := []string{
 		"http://localhost:5173",
 		"http://127.0.0.1:5173",
+		"http://localhost:5174",
+		"http://127.0.0.1:5174",
 	}
 	if !reflect.DeepEqual(cfg.FrontendOrigins, want) {
 		t.Fatalf("FrontendOrigins = %v, want %v", cfg.FrontendOrigins, want)

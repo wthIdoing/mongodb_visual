@@ -1,5 +1,5 @@
 <template>
-  <div class="mongodb-console">
+  <div class="mongodb-console" :class="{ 'mongodb-console--sidebar-collapsed': sidebarCollapsed }">
     <aside class="console-sidebar" :class="{ 'console-sidebar--collapsed': sidebarCollapsed }">
       <div class="sidebar-header" :class="{ 'sidebar-header--collapsed': sidebarCollapsed }">
         <button class="sidebar-toggle sidebar-toggle--header" :class="{ 'sidebar-toggle--collapsed': sidebarCollapsed }" @click="toggleSidebar">
@@ -1392,10 +1392,18 @@ function formatIndexKeys(keys: Record<string, unknown>) {
 
 <style scoped>
 .mongodb-console {
+  --sidebar-width: 320px;
+  --sidebar-gap: 20px;
   display: grid;
-  grid-template-columns: 320px 1fr;
-  min-height: calc(100vh - 40px);
-  gap: 20px;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  gap: var(--sidebar-gap);
+  min-height: 100vh;
+  align-items: start;
+  transition: grid-template-columns 0.25s ease;
+}
+
+.mongodb-console--sidebar-collapsed {
+  --sidebar-width: 76px;
 }
 
 .console-sidebar,
@@ -1408,10 +1416,17 @@ function formatIndexKeys(keys: Record<string, unknown>) {
 }
 
 .console-sidebar {
+  position: sticky;
+  top: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  min-height: 0;
   padding: 18px 16px;
   border: 1px solid #eef2f7;
   transition: width 0.25s ease, padding 0.25s ease;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .console-sidebar--collapsed {
@@ -1548,6 +1563,8 @@ function formatIndexKeys(keys: Record<string, unknown>) {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  padding: 32px;
 }
 
 .topbar {
@@ -1952,10 +1969,6 @@ function formatIndexKeys(keys: Record<string, unknown>) {
 }
 
 @media (max-width: 1200px) {
-  .mongodb-console {
-    grid-template-columns: 1fr;
-  }
-
   .control-panels {
     grid-template-columns: 1fr;
   }
